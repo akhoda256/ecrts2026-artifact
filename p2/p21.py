@@ -54,8 +54,6 @@ def hyperperiod(tasks: List[Task], cap: int = 1_000_000) -> int:
     for t in tasks:
         H = lcm(H, t.T)
         if H > cap:
-            # You can change this policy if you want, but keeping it deterministic avoids huge H
-            # and makes experiments manageable.
             return cap
     return H
 
@@ -179,15 +177,10 @@ def schedulable_rms_rta(tasks_sorted_rm: List[Task], beta: float = 1.0) -> bool:
 
 
 # ----------------------------
-# Boosted-RM reduction -> w_i  (YOUR BACKTRACKING + RESET RULE)
-# ----------------------------
 
 import math
 from typing import List, Tuple, Optional
 
-# Assumes you already have:
-#   - class/struct Task with fields: T, C
-#   - schedulable_rms_rta(tasks: List[Task]) -> bool
 
 
 def try_make_schedulable_with_reduction_straightforward(
@@ -453,7 +446,6 @@ def beta_min_global_closed_form(tasks: List[Task]) -> float:
     beta_h = beta
 
     while beta_h - beta_l > 0.0005:
-        print("beta_h = " + str(beta_h))
         new_beta = (beta_h + beta_l) / 2.0
         if schedulable_rms_rta(tasks, new_beta):
             beta_h = new_beta
@@ -576,7 +568,6 @@ def simulate_one_horizon_dynamic_cancel(
                     boost_used += 1
                     exec_amt = sB
             else:
-                print("here here here *****************************************************")
                 boost_used += 1
                 exec_amt = 1.0
 
@@ -846,9 +837,9 @@ def run_from_file(
         scale_fac = 10
         for r in recs:
             tasks = [Task(T=int(t["T"])*scale_fac, C=int(t["C"])*scale_fac) for t in r["tasks"]]
+            print(tasks)
             ts_rm = sorted(tasks, key=lambda x: x.T)
 
-            print(tasks)
             # skip RMS-schedulable task sets
             if schedulable_rms_rta(ts_rm):
                 num_rms_sched += 1
@@ -865,7 +856,6 @@ def run_from_file(
                 continue
 
             H = hyperperiod(ts_rm)
-            print(H)
             rec_seed = seed + int(r["id"]) * 1337
 
             stats = simulate_L_horizons_collect_samples(
@@ -884,10 +874,6 @@ def run_from_file(
             # all_comp.extend(stats["samples_comp_ratio"])
             # all_net.extend(stats["samples_net_energy"])
             # all_zero_boost.extend(stats["samples_zero_boost"])
-            if stats["used_over_ub"] > 0.12:
-                print("hi hi hi hi")
-                print(tasks)
-                print(feasible, _deltas, ws, reduced)
             all_used_frac.append(stats["used_frac"])
             all_used_over_ub.append(stats["used_over_ub"])
             all_comp.append(stats["comp_ratio"])
@@ -897,8 +883,7 @@ def run_from_file(
 
         time_pct = [100.0 * x for x in all_used_frac]
         ub_pct = [100.0 * x for x in all_used_over_ub]
-        print(all_comp)
-        print(all_net)
+
         box_time_data.append(time_pct if time_pct else [0.0])
         box_ub_data.append(ub_pct if ub_pct else [0.0])
         box_comp_data.append(all_comp if all_comp else [float("nan")])
@@ -1182,7 +1167,6 @@ def diff_from_file(
 
 
             boost_ub = sum((H // ts_rm[i].T) * ws[i] for i in range(len(ts_rm)))
-            print(H, ts_rm, _deltas, ws, boost_ub)
             for b in boost_up_list:
                 budget = float(b) * float(H)
                 if float(boost_ub) <= budget + 1e-12:
